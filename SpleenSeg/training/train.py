@@ -121,6 +121,8 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--log-every", type=int, default=50, help="Print a batch update every N steps (0 disables)")
+    parser.add_argument("--progress", action="store_true", help="Show tqdm progress bars (requires tqdm)")
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--amp", action="store_true", help="Use mixed precision (CUDA only)")
@@ -196,16 +198,24 @@ def main() -> None:
     print(f"Train dataset size (slices): {len(train_ds)}")
     print(f"Val dataset size (slices): {len(val_ds)}")
 
-    train_loader = DataLoader(train_ds, 
-                              batch_size=int(args.batch_size), 
-                              shuffle=True, 
-                              num_workers=int(args.num_workers),
-                              pin_memory=(device.type == "cuda"))
-    val_loader = DataLoader(val_ds,
-                            batch_size=int(args.batch_size), 
-                            shuffle=False, 
-                            num_workers=int(args.num_workers),
-                            pin_memory=(device.type == "cuda"))
+    persistent_workers = int(args.num_workers) > 0
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=int(args.batch_size),
+        shuffle=True,
+        num_workers=int(args.num_workers),
+        pin_memory=(device.type == "cuda"),
+        persistent_workers=persistent_workers,
+    )
+    val_loader = DataLoader(
+        val_ds,
+        batch_size=int(args.batch_size),
+        shuffle=False,
+        num_workers=int(args.num_workers),
+        pin_memory=(device.type == "cuda"),
+        persistent_workers=persistent_workers,
+    )
     
     model = UNet(
         spatial_dims=2,
@@ -265,7 +275,16 @@ def main() -> None:
             epoch_loss = 0.0
             n_steps = 0
 
-            for batch in train_loader:
+            train_iter = train_loader
+            if bool(args.progress):
+                try:
+                    from tqdm.auto import tqdm  # type: ignore
+
+                    train_iter = tqdm(train_loader, desc=f"Epoch {epoch}/{args.epochs} [train]", leave=False)
+                except Exception:
+                    train_iter = train_loader
+
+            for batch in train_iter:
                 images = batch["image"].to(device)  # [B, C, H, W]
                 labels = batch["label"].to(device).float()  # [B, 1, H, W]
 
@@ -281,6 +300,20 @@ def main() -> None:
 
                 epoch_loss += float(loss.detach().item())
                 n_steps += 1
+
+                if int(args.log_every) > 0 and (n_steps % int(args.log_every) == 0):
+                    total = len(train_loader) if hasattr(train_loader, "__len__") else -1
+                    if total > 0:
+                        print(f"  step {n_steps}/{total} | loss={float(loss.detach().item()):.4f}")
+                    else:
+                        print(f"  step {n_steps} | loss={float(loss.detach().item()):.4f}")
+
+                if bool(args.progress):
+                    try:
+                        # tqdm iterator has set_postfix; normal loader doesn't.
+                        train_iter.set_postfix(loss=float(loss.detach().item()))  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
 
             epoch_loss /= max(1, n_steps)
             print(f"Epoch {epoch}/{args.epochs} | train loss={epoch_loss:.4f}")
