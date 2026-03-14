@@ -48,7 +48,7 @@ def _save_npz(out_dir: Path, case_id: str, image: np.ndarray, label: np.ndarray,
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Step 2: Preprocess Task09_Spleen training set.")
+    parser = argparse.ArgumentParser(description="Preprocess Task09_Spleen training set.")
     parser.add_argument("--dataset-root", type=Path, default=Path("Task09_Spleen"))
     parser.add_argument("--out-dir", type=Path, default=Path("data_processed/task09_spleen"))
 

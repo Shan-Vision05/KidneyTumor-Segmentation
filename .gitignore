@@ -74,6 +74,9 @@ artifacts/
 mlruns/
 data_processed/
 
+# MLflow local backend store (SQLite)
+mlflow.db
+
 # Data / model artifacts (common)
 *.ckpt
 *.pth
