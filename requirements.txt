@@ -11,3 +11,4 @@ hydra-core
 numpy
 scipy
 scikit-image
+matplotlib
