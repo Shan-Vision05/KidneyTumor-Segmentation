@@ -97,8 +97,16 @@ jobs:
             docker compose -f docker-compose.yml pull
             docker compose -f docker-compose.yml up -d --remove-orphans
 
-            # Quick health check
-            sleep 5
-            docker exec $(docker ps -qf name=spleenseg) \
-              python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
-            echo "Deploy OK"
+            # Wait for the app to be ready (model loading can take a while)
+            CID=$(docker ps -qf name=spleenseg)
+            for i in 1 2 3 4 5 6; do
+              sleep 10
+              if docker exec "$CID" python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')" 2>/dev/null; then
+                echo "Deploy OK"
+                exit 0
+              fi
+              echo "Attempt $i: not ready yet..."
+            done
+            echo "Health check failed after 60s"
+            docker logs "$CID" --tail 30
+            exit 1
