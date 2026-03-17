@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-
 from torch.utils.data import DataLoader
 
 from SpleenSeg.preprocessing.transforms import PreprocessConfig

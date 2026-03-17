@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Sequence
 from pathlib import Path
+from typing import Sequence
 
 import numpy as np
 import torch
@@ -160,7 +160,6 @@ class DecathlonSpleen25DDataset(Dataset):
             self._cache.append((vol, msk))
 
             # Foreground-aware slice selection
-            z = msk.shape[2]
             fg_per_z = msk.sum(axis=(0, 1))  # [Z]
             pos_zs = np.where(fg_per_z > 0)[0].tolist()
             neg_zs = np.where(fg_per_z == 0)[0].tolist()

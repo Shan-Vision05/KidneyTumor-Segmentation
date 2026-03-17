@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from monai.losses import DiceLoss
 from monai.metrics import DiceMetric
-from monai.transforms import AsDiscrete, Compose, EnsureType, Activations
+from monai.transforms import Activations, AsDiscrete, Compose, EnsureType
 from torch.utils.data import DataLoader
 
 from SpleenSeg.model import build_unet_2d
@@ -161,11 +161,11 @@ def main() -> None:
     n_cases = len(info.get("training", []))
     if n_cases <=0:
         raise ValueError("No training cases found in dataset.json")
-    
+
     if args.max_cases and args.max_cases > 0:
         n_cases = min(n_cases, args.max_cases)
         print(f"Limiting to max_cases={n_cases} for quick verification")
-    
+
     train_case_idx, val_case_idx = _split_train_val(n_cases=n_cases, val_fraction=args.val_fraction, seed=args.seed)
 
     print(f"Device: {device} (AMP={use_amp})")
@@ -215,7 +215,7 @@ def main() -> None:
         pin_memory=(device.type == "cuda"),
         persistent_workers=persistent_workers,
     )
-    
+
     model = build_unet_2d(num_slices=int(args.num_slices)).to(device)
 
     loss_fn = DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")

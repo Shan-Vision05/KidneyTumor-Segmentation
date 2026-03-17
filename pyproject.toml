@@ -21,7 +21,21 @@ dependencies = [
     "mlflow",
     "onnx",
     "onnxruntime",
+    "fastapi",
+    "uvicorn[standard]",
 ]
+
+[project.optional-dependencies]
+dev = ["ruff"]
 
 [tool.setuptools.packages.find]
 include = ["SpleenSeg*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # line too long — handled by formatter, not a hard error
+]

@@ -9,3 +9,5 @@ tqdm
 mlflow
 onnx
 onnxruntime
+fastapi
+uvicorn[standard]

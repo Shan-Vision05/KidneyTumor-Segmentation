@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpleenSeg — CT Spleen Segmentation</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #21262d;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #388bfd;
+      --accent-dk: #1f6feb;
+      --green:     #3fb950;
+      --orange:    #d29922;
+      --red:       #f85149;
+      --cyan:      #39c5cf;
+      --magenta:   #d2a8ff;
+      --radius:    8px;
+    }
+
+    html, body {
+      height: 100vh; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 13px; background: var(--bg); color: var(--text);
+    }
+
+    /* App shell */
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Top bar */
+    .topbar {
+      flex-shrink: 0; display: flex; align-items: center; gap: 14px;
+      padding: 0 20px; height: 50px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: baseline; gap: 6px; }
+    .brand h1 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+    .brand h1 span { color: var(--cyan); }
+    .pill {
+      padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600;
+      background: #1c2d3a; color: var(--cyan); border: 1px solid var(--cyan);
+    }
+    .topbar-sub { color: var(--muted); font-size: 12px; border-left: 1px solid var(--border); padding-left: 14px; }
+    .topbar-links { margin-left: auto; font-size: 11px; color: var(--muted); }
+    .topbar-links a { color: var(--accent); text-decoration: none; margin-left: 10px; }
+    .topbar-links a:hover { text-decoration: underline; }
+
+    /* Three-column main */
+    .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 262px 1fr 1fr; }
+    .col { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+    .col:last-child { border-right: none; }
+
+    .col-header {
+      flex-shrink: 0; padding: 0 14px; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface2); border-bottom: 1px solid var(--border);
+      font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted);
+    }
+    .col-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+    .col-body::-webkit-scrollbar { width: 4px; }
+    .col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Cards */
+    .card {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 9px 10px; border: 2px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; background: var(--surface); margin-bottom: 8px;
+      transition: border-color .15s, background .15s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card.selected { border-color: var(--cyan); background: #0d1f2a; }
+    .card img { width: 68px; height: 68px; object-fit: cover; flex-shrink: 0; border-radius: 4px; background: #000; }
+    .card-text { min-width: 0; }
+    .card-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+    .card-desc  { color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+    .run-area { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    #btn-run {
+      padding: 7px 16px; font-size: 13px; font-weight: 600;
+      border-radius: var(--radius); border: none; cursor: pointer;
+      background: var(--accent); color: #fff; white-space: nowrap;
+      transition: background .15s;
+    }
+    #btn-run:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+    #btn-run:not(:disabled):hover { background: var(--accent-dk); }
+    #run-hint { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+    /* Log column */
+    .spinner {
+      width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      animation: spin .7s linear infinite;
+    }
+    .spinner.done { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-bar-wrap { flex-shrink: 0; height: 3px; background: var(--border); }
+    .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
+
+    .log-body {
+      flex: 1; min-height: 0; overflow-y: auto;
+      padding: 10px 14px;
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: 11.5px; line-height: 1.85;
+    }
+    .log-body::-webkit-scrollbar { width: 4px; }
+    .log-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .log-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.8; }
+
+    .log-line { display: flex; gap: 10px; }
+    .log-ts   { color: var(--muted); flex-shrink: 0; }
+    .log-step { min-width: 78px; flex-shrink: 0; font-weight: 700; text-transform: uppercase; font-size: 9.5px; padding-top: 3px; letter-spacing: .3px; }
+    .log-step.start      { color: var(--muted); }
+    .log-step.preprocess { color: var(--orange); }
+    .log-step.onnx_load  { color: var(--cyan); }
+    .log-step.inference  { color: var(--accent); }
+    .log-step.save       { color: var(--magenta); }
+    .log-step.done       { color: var(--green); }
+    .log-step.error      { color: var(--red); }
+    .log-step.timeout    { color: var(--red); }
+    .log-msg  { color: var(--text); }
+
+    /* Results column */
+    .metrics-section {
+      flex-shrink: 0; padding: 11px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; margin-bottom: 10px; }
+    .stat-label { font-size: 10px; color: var(--muted); margin-bottom: 1px; }
+    .stat-value { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
+    .stat-value.dice { color: var(--green); }
+    .btn-dl {
+      display: inline-block; padding: 5px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: 11px; font-weight: 600; color: var(--text);
+      background: var(--surface2); text-decoration: none;
+      transition: border-color .15s, background .15s;
+    }
+    .btn-dl:hover { border-color: var(--accent); background: #1c2d3a; }
+
+    .browser-section { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+    .browser-header {
+      flex-shrink: 0; padding: 0 14px; height: 32px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border); background: var(--surface2);
+      font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted);
+    }
+    .color-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      margin-right: 3px; vertical-align: middle;
+    }
+    .browser-img-wrap {
+      flex: 1; min-height: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 8px; background: #000;
+    }
+    #slice-img {
+      max-width: 100%; max-height: 100%; object-fit: contain;
+      border-radius: 3px; display: none;
+    }
+    .browser-controls {
+      flex-shrink: 0; padding: 7px 14px;
+      display: flex; align-items: center; gap: 10px;
+      border-top: 1px solid var(--border);
+    }
+    #slice-range { flex: 1; accent-color: var(--accent); cursor: pointer; }
+    #slice-idx   { font-size: 11px; color: var(--muted); min-width: 100px; text-align: right; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="brand">
+      <h1><span>Spleen</span>Seg</h1>
+      <span class="pill">2.5D UNet</span>
+      <span class="pill" style="color:var(--green);border-color:var(--green);background:#1a2d1a">ONNX</span>
+    </div>
+    <div class="topbar-sub">CT spleen segmentation &middot; MSD Decathlon Task09 &middot; 128&sup3; foreground ROI &middot; ~5 s on CPU</div>
+    <div class="topbar-links">
+      <a href="/docs" target="_blank">API docs</a>
+      <a href="https://monai.io" target="_blank">MONAI</a>
+      <a href="https://onnxruntime.ai" target="_blank">ONNX Runtime</a>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Col 1: case selector -->
+    <div class="col">
+      <div class="col-header">Select a case</div>
+      <div class="col-body">
+
+        <div class="card" data-case="spleen_12" onclick="selectCase('spleen_12')">
+          <img src="/static/previews/spleen_12_preview.png" alt="spleen_12" />
+          <div class="card-text">
+            <div class="card-title">spleen_12</div>
+            <div class="card-desc">High-quality scan, well-defined boundary, minimal artefacts.</div>
+          </div>
+        </div>
+
+        <div class="card" data-case="spleen_20" onclick="selectCase('spleen_20')">
+          <img src="/static/previews/spleen_20_preview.png" alt="spleen_20" />
+          <div class="card-text">
+            <div class="card-title">spleen_20</div>
+            <div class="card-desc">Typical clinical case — moderate motion, standard anatomy.</div>
+          </div>
+        </div>
+
+        <div class="card" data-case="spleen_6" onclick="selectCase('spleen_6')">
+          <img src="/static/previews/spleen_6_preview.png" alt="spleen_6" />
+          <div class="card-text">
+            <div class="card-title">spleen_6</div>
+            <div class="card-desc">Challenging case — heterogeneous texture, lower contrast.</div>
+          </div>
+        </div>
+
+        <div class="run-area">
+          <button id="btn-run" disabled onclick="runInference()">&#9654; Run Inference</button>
+          <span id="run-hint">Select a case above.</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Col 2: live log -->
+    <div class="col">
+      <div class="col-header">
+        <div class="spinner done" id="log-spinner"></div>
+        <span>Live backend log</span>
+        <span id="log-status" style="margin-left:auto;font-weight:400;text-transform:none;font-size:11px;letter-spacing:0;color:var(--muted)"></span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+      <div class="log-body" id="log-body">
+        <div class="log-placeholder" id="log-placeholder">Select a case and<br>click Run Inference.</div>
+      </div>
+    </div>
+
+    <!-- Col 3: results -->
+    <div class="col">
+
+      <!-- placeholder -->
+      <div id="results-placeholder" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;text-align:center;line-height:1.8;">
+        Results will appear<br>after inference completes.
+      </div>
+
+      <!-- results (hidden until done) -->
+      <div id="results-inner" style="display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden;">
+
+        <div class="metrics-section">
+          <div class="stat-row">
+            <div><div class="stat-label">Dice score</div><div class="stat-value dice" id="res-dice">—</div></div>
+            <div><div class="stat-label">Inference time</div><div class="stat-value" id="res-time">—</div></div>
+            <div><div class="stat-label">Mask voxels</div><div class="stat-value" id="res-mask">—</div></div>
+            <div><div class="stat-label">QC slices</div><div class="stat-value" id="res-qc">—</div></div>
+          </div>
+          <a id="res-download" class="btn-dl" href="#" download>&#8595; Download mask (.nii.gz)</a>
+        </div>
+
+        <div class="browser-section">
+          <div class="browser-header">
+            Slice browser &mdash; 2&times;2 QC&nbsp;
+            <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px;">
+              <span class="color-dot" style="background:#fff"></span>CT
+              <span class="color-dot" style="background:#00e5ff;margin-left:5px"></span>GT
+              <span class="color-dot" style="background:#e040fb;margin-left:5px"></span>Pred
+              <span class="color-dot" style="background:#333;border:1px solid #666;margin-left:5px"></span>TP/FP/FN
+            </span>
+          </div>
+          <div class="browser-img-wrap">
+            <img id="slice-img" src="" alt="2x2 QC slice" />
+          </div>
+          <div class="browser-controls">
+            <input type="range" id="slice-range" min="0" max="0" value="0" oninput="browseSlice(this.value)" />
+            <span id="slice-idx">—</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+  let selectedCase       = null;
+  let currentEventSource = null;
+  let sliceIndices       = [];
+
+  const API_BASE = (() =>
+    window.location.pathname.replace(/\/+$/, '').replace(/\/index\.html$/, '')
+  )();
+  const apiUrl = p => API_BASE + p;
+
+  function selectCase(caseId) {
+    selectedCase = caseId;
+    document.querySelectorAll('.card').forEach(c =>
+      c.classList.toggle('selected', c.dataset.case === caseId)
+    );
+    document.getElementById('btn-run').disabled = false;
+    document.getElementById('run-hint').textContent = 'Ready: ' + caseId;
+  }
+
+  function appendLog(step, msg) {
+    const body = document.getElementById('log-body');
+    const ph   = document.getElementById('log-placeholder');
+    if (ph) ph.remove();
+    const now  = new Date().toTimeString().slice(0, 8);
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML =
+      '<span class="log-ts">' + now + '</span>' +
+      '<span class="log-step ' + step + '">' + step + '</span>' +
+      '<span class="log-msg">' + escHtml(msg) + '</span>';
+    body.appendChild(line);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function setProgress(pct) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+  }
+
+  async function runInference() {
+    if (!selectedCase) return;
+    const caseId = selectedCase;
+
+    // Reset log
+    document.getElementById('log-body').innerHTML =
+      '<div class="log-placeholder" id="log-placeholder"></div>';
+    document.getElementById('log-spinner').className = 'spinner';
+    document.getElementById('log-status').textContent = 'Running\u2026';
+    setProgress(0);
+    document.getElementById('btn-run').disabled = true;
+    document.getElementById('run-hint').textContent = 'Running\u2026';
+
+    // Hide results
+    document.getElementById('results-placeholder').style.display = 'flex';
+    document.getElementById('results-inner').style.display = 'none';
+
+    if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+
+    const es = new EventSource(apiUrl('/run/' + caseId + '/stream'));
+    currentEventSource = es;
+
+    es.onmessage = ev => {
+      let data;
+      try { data = JSON.parse(ev.data); } catch { return; }
+      appendLog(data.step, data.msg);
+      if (data.step === 'inference' && data.progress !== undefined) setProgress(data.progress);
+      if (data.done) {
+        es.close();
+        document.getElementById('log-spinner').className = 'spinner done';
+        if (data.step === 'done') {
+          const d = data.dice != null ? data.dice.toFixed(4) : '?';
+          const t = data.inference_time_s != null ? data.inference_time_s.toFixed(1) : '?';
+          document.getElementById('log-status').textContent = 'Dice ' + d + ' \u00b7 ' + t + ' s';
+          setProgress(100);
+          loadResults(caseId, data);
+        } else {
+          document.getElementById('log-status').textContent = 'Stopped';
+        }
+        document.getElementById('btn-run').disabled = false;
+        document.getElementById('run-hint').textContent = 'Done: ' + caseId;
+      }
+    };
+
+    es.onerror = () => {
+      appendLog('error', 'SSE connection error \u2014 see server logs.');
+      es.close();
+      document.getElementById('log-spinner').className = 'spinner done';
+      document.getElementById('log-status').textContent = 'Error';
+      document.getElementById('btn-run').disabled = false;
+    };
+
+    try {
+      const res = await fetch(apiUrl('/run/' + caseId), { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ detail: res.statusText }));
+        appendLog('error', 'HTTP ' + res.status + ': ' + (body.detail ?? res.statusText));
+        es.close();
+        document.getElementById('log-spinner').className = 'spinner done';
+        document.getElementById('log-status').textContent = 'Error';
+        document.getElementById('btn-run').disabled = false;
+      }
+    } catch (err) {
+      appendLog('error', 'Fetch failed: ' + err.message);
+      es.close();
+      document.getElementById('log-spinner').className = 'spinner done';
+      document.getElementById('log-status').textContent = 'Network error';
+      document.getElementById('btn-run').disabled = false;
+    }
+  }
+
+  async function loadResults(caseId, sseData) {
+    let result = null;
+    try {
+      const res = await fetch(apiUrl('/result/' + caseId));
+      if (res.ok) result = await res.json();
+    } catch {}
+
+    const dice  = sseData?.dice  ?? result?.dice;
+    const timeS = sseData?.inference_time_s ?? result?.inference_time_s;
+    const mask  = result?.mask_sum;
+    const nQc   = result?.n_qc_slices;
+
+    document.getElementById('res-dice').textContent = dice  != null ? dice.toFixed(4) : '—';
+    document.getElementById('res-time').textContent = timeS != null ? timeS.toFixed(1) + ' s' : '—';
+    document.getElementById('res-mask').textContent = mask  != null ? mask.toLocaleString() : '—';
+    document.getElementById('res-qc').textContent   = nQc   != null ? nQc : '—';
+    document.getElementById('res-download').href    = apiUrl('/result/' + caseId + '/mask');
+    document.getElementById('res-download').setAttribute('download', caseId + '_pred_mask.nii.gz');
+
+    document.getElementById('results-placeholder').style.display = 'none';
+    document.getElementById('results-inner').style.display = 'flex';
+
+    if (nQc && nQc > 0) await populateSliceBrowser(caseId);
+  }
+
+  async function populateSliceBrowser(caseId) {
+    let res;
+    try {
+      res = await fetch(apiUrl('/result/' + caseId + '/qc/slices'));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+    } catch (e) {
+      appendLog('error', 'Could not load slice list: ' + e.message);
+      return;
+    }
+    const data = await res.json();
+    sliceIndices = data.slices ?? [];
+    if (sliceIndices.length === 0) return;
+
+    const range = document.getElementById('slice-range');
+    range.min   = 0;
+    range.max   = sliceIndices.length - 1;
+    range.value = Math.floor(sliceIndices.length / 2);
+
+    document.getElementById('slice-img').style.display = 'block';
+    browseSlice(range.value, caseId);
+  }
+
+  function browseSlice(rangeVal, caseIdOverride) {
+    const caseId = caseIdOverride ?? selectedCase;
+    if (!caseId || sliceIndices.length === 0) return;
+    const z  = sliceIndices[parseInt(rangeVal)];
+    document.getElementById('slice-img').src = apiUrl('/result/' + caseId + '/qc/' + z) + '?t=' + Date.now();
+    document.getElementById('slice-idx').textContent =
+      'z=' + z + '  (' + (parseInt(rangeVal)+1) + ' / ' + sliceIndices.length + ')';
+  }
+</script>
+</body>
+</html>
