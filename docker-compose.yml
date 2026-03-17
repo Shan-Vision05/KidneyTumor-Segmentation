@@ -30,6 +30,7 @@ services:
       - "traefik.http.routers.spleenseg-http.entrypoints=web"
       - "traefik.http.routers.spleenseg-http.middlewares=redirect-to-https"
     networks:
+      - portfolio_web
 networks:
   portfolio_web:
     external: true   # already created by the portfolio compose project
