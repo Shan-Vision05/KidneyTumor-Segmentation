@@ -80,6 +80,9 @@ spleen_run_dump/
 # MLflow local backend store (SQLite)
 mlflow.db
 
+# Local environment overrides (never commit)
+.env
+
 # Data / model artifacts (common)
 *.ckpt
 *.pth

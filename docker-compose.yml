@@ -1,0 +1,23 @@
+services:
+  spleenseg:
+    image: ghcr.io/shan-vision05/spleenseg:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      ONNX_MODEL_PATH: /models/unet25d.onnx
+      SAMPLES_DIR: /samples
+      RESULTS_DIR: /results
+      NUM_SLICES: "5"
+      THRESHOLD: "0.5"
+      ROOT_PATH: ${ROOT_PATH:-}
+    volumes:
+      # Model — baked into the image; override here for local dev without rebuild
+      - ./models:/models:ro
+      # Sample cases — populated by `dvc pull` before the container starts
+      - ./samples:/samples:ro
+    tmpfs:
+      - /results
