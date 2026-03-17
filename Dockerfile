@@ -20,7 +20,8 @@ COPY SpleenSeg/ ./SpleenSeg/
 ENV PYTHONPATH=/app
 
 # Bake the ONNX model and sample cases into the image
-COPY spleen_run_dump/onnx/unet25d.onnx /models/unet25d.onnx
+# (dvc pull restores these paths before `docker build` is called in CI)
+COPY models/unet25d.onnx /models/unet25d.onnx
 COPY samples/ /samples/
 
 # Runtime configuration — all can be overridden in docker-compose / docker run
