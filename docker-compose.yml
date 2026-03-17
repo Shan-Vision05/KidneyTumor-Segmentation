@@ -19,6 +19,7 @@ services:
       - "traefik.enable=true"
       # Route all traffic under /spleenseg/ to this container
       - "traefik.http.routers.spleenseg.rule=Host(`${DOMAIN}`,`www.${DOMAIN}`) && PathPrefix(`/spleenseg`)"
+      - "traefik.http.routers.spleenseg.priority=200"
       - "traefik.http.routers.spleenseg.entrypoints=websecure"
       - "traefik.http.routers.spleenseg.tls.certresolver=myresolver"
       # Strip the /spleenseg prefix before forwarding to FastAPI
@@ -27,6 +28,7 @@ services:
       - "traefik.http.services.spleenseg.loadbalancer.server.port=8000"
       # HTTP → HTTPS redirect (same middleware as portfolio)
       - "traefik.http.routers.spleenseg-http.rule=Host(`${DOMAIN}`,`www.${DOMAIN}`) && PathPrefix(`/spleenseg`)"
+      - "traefik.http.routers.spleenseg-http.priority=200"
       - "traefik.http.routers.spleenseg-http.entrypoints=web"
       - "traefik.http.routers.spleenseg-http.middlewares=redirect-to-https"
     networks:
