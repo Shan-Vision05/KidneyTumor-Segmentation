@@ -310,7 +310,7 @@ def _run_inference_sync(case_id: str) -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     """Serve the interactive web UI."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @app.get("/run/{case_id}/stream", summary="Server-Sent Events: live inference log", tags=["inference"])
