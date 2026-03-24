@@ -12,7 +12,7 @@ services:
       RESULTS_DIR: /results
       NUM_SLICES: "5"
       THRESHOLD: "0.5"
-      ROOT_PATH: ${ROOT_PATH:-}
+      ROOT_PATH: ${ROOT_PATH:-/spleenseg}
     tmpfs:
       - /results
     labels:

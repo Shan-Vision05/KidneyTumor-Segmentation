@@ -199,7 +199,7 @@
       <div class="col-body">
 
         <div class="card" data-case="spleen_12" onclick="selectCase('spleen_12')">
-          <img src="static/previews/spleen_12_preview.png" alt="spleen_12" />
+          <img src="{{ request.url_for('static', path='previews/spleen_12_preview.png') }}" alt="spleen_12" />
           <div class="card-text">
             <div class="card-title">spleen_12</div>
             <div class="card-desc">High-quality scan, well-defined boundary, minimal artefacts.</div>
@@ -207,7 +207,7 @@
         </div>
 
         <div class="card" data-case="spleen_20" onclick="selectCase('spleen_20')">
-          <img src="static/previews/spleen_20_preview.png" alt="spleen_20" />
+          <img src="{{ request.url_for('static', path='previews/spleen_20_preview.png') }}" alt="spleen_20" />
           <div class="card-text">
             <div class="card-title">spleen_20</div>
             <div class="card-desc">Typical clinical case — moderate motion, standard anatomy.</div>
@@ -215,7 +215,7 @@
         </div>
 
         <div class="card" data-case="spleen_6" onclick="selectCase('spleen_6')">
-          <img src="static/previews/spleen_6_preview.png" alt="spleen_6" />
+          <img src="{{ request.url_for('static', path='previews/spleen_6_preview.png') }}" alt="spleen_6" />
           <div class="card-text">
             <div class="card-title">spleen_6</div>
             <div class="card-desc">Challenging case — heterogeneous texture, lower contrast.</div>
